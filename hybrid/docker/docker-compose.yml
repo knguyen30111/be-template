@@ -10,6 +10,8 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/nestjs_db?schema=public
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - JWT_ACCESS_SECRET=dev-access-secret-change-in-production
+      - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
     volumes:
       - ../src:/app/src
       - ../prisma:/app/prisma
@@ -22,7 +24,7 @@ services:
       - app-network
 
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     ports:
       - "5432:5432"
     environment:

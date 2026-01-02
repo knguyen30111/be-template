@@ -6,8 +6,9 @@ WORKDIR /app
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copy package files
+# Copy package files and config
 COPY package.json pnpm-lock.yaml ./
+COPY tsconfig.json nest-cli.json .swcrc ./
 COPY prisma ./prisma/
 
 # Install all dependencies
