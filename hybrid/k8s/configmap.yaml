@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nestjs-api-config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  API_PREFIX: "api"
+  SWAGGER_ENABLED: "false"
+  THROTTLE_TTL: "60000"
+  THROTTLE_LIMIT: "100"
+---
+# Secrets should be created separately or via external secrets manager
+# kubectl create secret generic nestjs-api-secrets \
+#   --from-literal=DATABASE_URL='postgresql://...' \
+#   --from-literal=JWT_ACCESS_SECRET='...' \
+#   --from-literal=JWT_REFRESH_SECRET='...' \
+#   --from-literal=REDIS_HOST='...'

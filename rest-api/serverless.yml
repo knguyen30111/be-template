@@ -1,0 +1,45 @@
+# Google Cloud Functions configuration
+# Deploy: npx serverless deploy --stage prod
+
+service: nestjs-rest-api
+
+provider:
+  name: google
+  runtime: nodejs22
+  project: ${env:GCP_PROJECT_ID}
+  region: ${opt:region, 'us-central1'}
+  credentials: ${env:GOOGLE_APPLICATION_CREDENTIALS}
+
+plugins:
+  - serverless-google-cloudfunctions
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+    - '!src/**'
+    - '!test/**'
+    - '!docker/**'
+    - '!k8s/**'
+    - 'dist/**'
+    - 'node_modules/.prisma/**'
+    - 'prisma/schema.prisma'
+
+functions:
+  api:
+    handler: handler
+    events:
+      - http: path
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${env:DATABASE_URL}
+      JWT_ACCESS_SECRET: ${env:JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${env:JWT_REFRESH_SECRET}
+      REDIS_HOST: ${env:REDIS_HOST}
+    memorySize: 512
+    timeout: 60s
+
+custom:
+  # For local development with serverless-offline
+  serverless-offline:
+    httpPort: 3000

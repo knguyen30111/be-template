@@ -1,0 +1,96 @@
+# ===========================================
+# NestJS GraphQL Template - Schema-First
+# ===========================================
+
+# Scalars
+scalar DateTime
+
+# ===========================================
+# Enums
+# ===========================================
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Provider {
+  LOCAL
+  GOOGLE
+  GITHUB
+}
+
+# ===========================================
+# Types
+# ===========================================
+
+type User {
+  id: ID!
+  email: String!
+  name: String
+  role: Role!
+  provider: Provider!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type AuthPayload {
+  accessToken: String!
+  refreshToken: String!
+  user: User!
+}
+
+type Tokens {
+  accessToken: String!
+  refreshToken: String!
+}
+
+type HealthStatus {
+  status: String!
+  info: JSON
+  error: JSON
+  details: JSON
+}
+
+# JSON scalar for flexible health check responses
+scalar JSON
+
+# ===========================================
+# Inputs
+# ===========================================
+
+input RegisterInput {
+  email: String!
+  password: String!
+  name: String
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+# ===========================================
+# Queries
+# ===========================================
+
+type Query {
+  # Health
+  health: HealthStatus!
+
+  # User
+  me: User!
+  user(id: ID!): User
+}
+
+# ===========================================
+# Mutations
+# ===========================================
+
+type Mutation {
+  # Auth
+  register(input: RegisterInput!): AuthPayload!
+  login(input: LoginInput!): AuthPayload!
+  refreshTokens: Tokens!
+  logout: Boolean!
+}

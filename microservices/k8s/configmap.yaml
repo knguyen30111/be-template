@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microservices-config
+  namespace: microservices
+data:
+  NODE_ENV: 'production'
+  KAFKA_BROKERS: 'kafka.microservices.svc.cluster.local:9092'
+  REDIS_URL: 'redis://redis.microservices.svc.cluster.local:6379'
