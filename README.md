@@ -96,6 +96,7 @@ graph TB
 | Prisma ORM | ✓ | ✓ | ✓ | ✓ |
 | JWT Auth | ✓ | ✓ | ✓ | ✓ |
 | OAuth2 | ✓ | ✓ | ✓ | - |
+| **RBAC (via CLI)** | ✓ | ✓ | ✓ | ✓ |
 | Redis Cache | ✓ | ✓ | ✓ | ✓ |
 | Rate Limiting | ✓ | ✓ | ✓ | ✓ |
 | Swagger | ✓ | - | ✓ | ✓ |
@@ -107,6 +108,22 @@ graph TB
 | PM2 | ✓ | ✓ | ✓ | - |
 
 ## Quick Start
+
+### Using CLI (Recommended)
+
+```bash
+# Install and build CLI
+cd be-template/cli
+pnpm install && pnpm build
+
+# Create project with RBAC
+node dist/index.js rest-api my-api --with-rbac
+
+# Or without RBAC
+node dist/index.js graphql my-graphql-api
+```
+
+### Manual Copy
 
 ```bash
 # Clone this repo
@@ -121,6 +138,87 @@ pnpm install
 cp .env.example .env
 pnpm db:generate
 pnpm start:dev
+```
+
+## CLI Tool
+
+The `create-nestjs-app` CLI scaffolds projects with optional modular features.
+
+### Usage
+
+```bash
+create-nestjs-app <template> <project-name> [options]
+```
+
+### Templates
+
+| Template | Description |
+|----------|-------------|
+| `rest-api` | REST API with Swagger |
+| `graphql` | GraphQL with Apollo |
+| `hybrid` | REST + GraphQL combined |
+| `microservices` | Kafka-based microservices |
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--with-rbac` | Add RBAC module (config-based) |
+| `--with-rbac=db` | Add RBAC module with Prisma models |
+| `--skip-install` | Skip dependency installation |
+
+### Examples
+
+```bash
+# REST API with hierarchical RBAC
+create-nestjs-app rest-api my-api --with-rbac
+
+# GraphQL with DB-backed RBAC
+create-nestjs-app graphql my-gql --with-rbac=db
+
+# Microservices without auto-install
+create-nestjs-app microservices platform --with-rbac --skip-install
+```
+
+## RBAC Module
+
+When using `--with-rbac`, a complete RBAC system is added:
+
+### Features
+
+- **Hierarchical Roles** - Role inheritance (ADMIN inherits MODERATOR permissions)
+- **Granular Permissions** - Resource-action format (`users:write`, `posts:delete`)
+- **Decorators** - `@Roles('ADMIN')`, `@Permissions('users:write')`
+- **Guards** - `RolesGuard`, `PermissionsGuard`
+- **JWT Caching** - Permissions embedded in JWT for O(1) checks
+
+### Default Role Hierarchy
+
+```
+SUPER_ADMIN → * (all permissions)
+    └── ADMIN → users:write, users:delete, settings:manage
+        └── MODERATOR → users:read, content:moderate
+            └── USER → profile:read, profile:write
+```
+
+### Usage Example
+
+```typescript
+import { Roles, Permissions, RolesGuard, PermissionsGuard } from './modules/rbac';
+
+@Controller('users')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+export class UsersController {
+
+  @Get()
+  @Roles('ADMIN', 'MODERATOR')
+  findAll() { /* ... */ }
+
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @Permissions('users:delete')
+  remove(@Param('id') id: string) { /* ... */ }
+}
 ```
 
 ## Tech Stack
@@ -212,6 +310,9 @@ Each template includes:
 - `README.md` - Quick start, API reference
 - `docs/system-architecture.md` - Architecture diagrams
 - `docs/deployment-guide.md` - Deployment instructions
+
+CLI documentation:
+- `cli/README.md` - CLI usage, RBAC module details
 
 ## License
 
