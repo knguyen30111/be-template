@@ -99,7 +99,7 @@ pnpm db:migrate
 pnpm start:all
 ```
 
-Gateway: http://localhost:3000
+Gateway: http://localhost:3000/api/v1/
 Swagger: http://localhost:3000/api/docs
 
 ## Project Structure

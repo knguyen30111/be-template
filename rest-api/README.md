@@ -64,6 +64,7 @@ pnpm db:migrate
 pnpm start:dev
 ```
 
+API: http://localhost:3000/api/v1/
 Swagger: http://localhost:3000/api/docs
 
 ## Project Structure
@@ -84,15 +85,15 @@ src/
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | /api/auth/register | - | Register user |
-| POST | /api/auth/login | - | Login |
-| POST | /api/auth/refresh | JWT | Refresh tokens |
-| POST | /api/auth/logout | JWT | Logout |
-| GET | /api/auth/me | JWT | Current user |
-| GET | /api/auth/google | - | Google OAuth |
-| GET | /api/auth/github | - | GitHub OAuth |
-| GET | /api/health | - | Liveness |
-| GET | /api/health/ready | - | Readiness |
+| POST | /api/v1/auth/register | - | Register user |
+| POST | /api/v1/auth/login | - | Login |
+| POST | /api/v1/auth/refresh | JWT | Refresh tokens |
+| POST | /api/v1/auth/logout | JWT | Logout |
+| GET | /api/v1/auth/me | JWT | Current user |
+| GET | /api/v1/auth/google | - | Google OAuth |
+| GET | /api/v1/auth/github | - | GitHub OAuth |
+| GET | /api/v1/health | - | Liveness |
+| GET | /api/v1/health/ready | - | Readiness |
 
 ## Authentication
 

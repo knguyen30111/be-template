@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -21,6 +21,12 @@ async function bootstrap() {
   // Global prefix
   const prefix = process.env.API_PREFIX || 'api';
   app.setGlobalPrefix(prefix);
+
+  // API Versioning (URI path: /api/v1/...)
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: process.env.API_VERSION || '1',
+  });
 
   // Validation
   app.useGlobalPipes(
@@ -49,8 +55,10 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = process.env.GATEWAY_PORT || 3000;
+  const version = process.env.API_VERSION || '1';
   await app.listen(port);
   logger.log(`Gateway running on port ${port}`);
+  logger.log(`API available at http://localhost:${port}/${prefix}/v${version}/`);
 }
 
 bootstrap();

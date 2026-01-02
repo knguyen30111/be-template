@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, VersioningType } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 
@@ -29,6 +29,18 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Global prefix for REST endpoints (health, OAuth callbacks)
+  const prefix = process.env.API_PREFIX || 'api';
+  app.setGlobalPrefix(prefix, {
+    exclude: ['graphql'],
+  });
+
+  // API Versioning for REST endpoints (URI path: /api/v1/...)
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: process.env.API_VERSION || '1',
+  });
+
   // Validation
   app.useGlobalPipes(
     new ValidationPipe({
@@ -46,6 +58,7 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`Application running on port ${port}`);
   logger.log(`GraphQL Playground available at http://localhost:${port}/graphql`);
+  logger.log(`REST endpoints at http://localhost:${port}/${prefix}/v${process.env.API_VERSION || '1'}/`);
 }
 
 bootstrap();

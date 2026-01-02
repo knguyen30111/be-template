@@ -88,7 +88,7 @@ pnpm start:dev
 
 ### Endpoints
 
-- **REST API**: http://localhost:3000/api
+- **REST API**: http://localhost:3000/api/v1/
 - **Swagger**: http://localhost:3000/api/docs
 - **GraphQL**: http://localhost:3000/graphql
 
@@ -114,12 +114,12 @@ src/
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | /api/auth/register | - | Register |
-| POST | /api/auth/login | - | Login |
-| POST | /api/auth/refresh | JWT | Refresh |
-| POST | /api/auth/logout | JWT | Logout |
-| GET | /api/auth/me | JWT | Current user |
-| GET | /api/health | - | Health check |
+| POST | /api/v1/auth/register | - | Register |
+| POST | /api/v1/auth/login | - | Login |
+| POST | /api/v1/auth/refresh | JWT | Refresh |
+| POST | /api/v1/auth/logout | JWT | Logout |
+| GET | /api/v1/auth/me | JWT | Current user |
+| GET | /api/v1/health | - | Health check |
 
 ## GraphQL Operations
 
