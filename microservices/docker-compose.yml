@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   # Infrastructure
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: microservices-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -18,6 +16,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - microservices-network
 
   redis:
     image: redis:7-alpine
@@ -26,11 +26,14 @@ services:
       - '6379:6379'
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - microservices-network
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -43,12 +46,20 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_log:/var/lib/zookeeper/log
+    healthcheck:
+      test: ['CMD', 'nc', '-z', 'localhost', '2181']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: microservices-kafka
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - '9092:9092'
       - '29092:29092'
@@ -67,6 +78,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+    networks:
+      - microservices-network
 
   # Application Services
   gateway:
@@ -75,8 +88,10 @@ services:
       dockerfile: docker/Dockerfile.gateway
     container_name: microservices-gateway
     depends_on:
-      - kafka
-      - redis
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - '3000:3000'
     environment:
@@ -84,10 +99,13 @@ services:
       - PORT=3000
       - KAFKA_BROKERS=kafka:29092
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-key-change-in-production}
       - JWT_EXPIRES_IN=15m
       - JWT_REFRESH_EXPIRES_IN=7d
     restart: unless-stopped
+    networks:
+      - microservices-network
 
   user-service:
     build:
@@ -95,13 +113,17 @@ services:
       dockerfile: docker/Dockerfile.user-service
     container_name: microservices-user-service
     depends_on:
-      - kafka
-      - postgres
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       - NODE_ENV=production
       - KAFKA_BROKERS=kafka:29092
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-microservices}?schema=public
     restart: unless-stopped
+    networks:
+      - microservices-network
 
   notification-service:
     build:
@@ -109,11 +131,14 @@ services:
       dockerfile: docker/Dockerfile.notification-service
     container_name: microservices-notification-service
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     environment:
       - NODE_ENV=production
       - KAFKA_BROKERS=kafka:29092
     restart: unless-stopped
+    networks:
+      - microservices-network
 
 volumes:
   postgres_data:
@@ -121,3 +146,7 @@ volumes:
   zookeeper_data:
   zookeeper_log:
   kafka_data:
+
+networks:
+  microservices-network:
+    driver: bridge
