@@ -2,14 +2,109 @@
 
 Production-ready NestJS 11 templates for rapid project scaffolding.
 
+## Template Comparison
+
+```mermaid
+graph LR
+    subgraph REST["REST API"]
+        R_API[HTTP/REST]
+        R_SWAGGER[Swagger]
+    end
+
+    subgraph GraphQL["GraphQL"]
+        G_APOLLO[Apollo Server]
+        G_PLAY[Playground]
+    end
+
+    subgraph Hybrid["Hybrid"]
+        H_REST[REST]
+        H_GQL[GraphQL]
+    end
+
+    subgraph Microservices["Microservices"]
+        M_GW[Gateway]
+        M_KAFKA[Kafka]
+        M_SVC[Services]
+    end
+
+    CLIENT[Client] --> REST
+    CLIENT --> GraphQL
+    CLIENT --> Hybrid
+    CLIENT --> Microservices
+```
+
+## Architecture Overview
+
+### REST API Template
+
+```mermaid
+graph TB
+    C[Client] --> API[NestJS REST API]
+    API --> AUTH[Auth Service]
+    AUTH --> DB[(PostgreSQL)]
+    AUTH --> CACHE[(Redis)]
+```
+
+### GraphQL Template
+
+```mermaid
+graph TB
+    C[Client] --> APOLLO[Apollo Server]
+    APOLLO --> RESOLVER[Resolvers]
+    RESOLVER --> SVC[Services]
+    SVC --> DB[(PostgreSQL)]
+```
+
+### Hybrid Template
+
+```mermaid
+graph TB
+    C[Client]
+    C --> REST[REST Controller]
+    C --> GQL[GraphQL Resolver]
+    REST --> SVC[Shared Service]
+    GQL --> SVC
+    SVC --> DB[(PostgreSQL)]
+```
+
+### Microservices Template
+
+```mermaid
+graph TB
+    C[Client] --> GW[Gateway]
+    GW --> K[Kafka]
+    K --> USER[User Service]
+    K --> NOTIF[Notification Service]
+    USER --> DB[(PostgreSQL)]
+```
+
 ## Templates
 
-| Template | Description | Use Case |
-|----------|-------------|----------|
-| [`rest-api/`](./rest-api/) | REST API with Swagger | Traditional REST APIs |
-| [`graphql/`](./graphql/) | Schema-first GraphQL | GraphQL-only APIs |
-| [`hybrid/`](./hybrid/) | REST + GraphQL combined | APIs serving both REST and GraphQL |
-| [`microservices/`](./microservices/) | Kafka-based microservices | Distributed systems |
+| Template | API Style | Best For |
+|----------|-----------|----------|
+| [`rest-api/`](./rest-api/) | REST + Swagger | Traditional REST APIs, CRUD apps |
+| [`graphql/`](./graphql/) | GraphQL | Mobile apps, flexible queries |
+| [`hybrid/`](./hybrid/) | REST + GraphQL | APIs serving multiple clients |
+| [`microservices/`](./microservices/) | Kafka messaging | Distributed systems, scalability |
+
+## Feature Matrix
+
+| Feature | REST | GraphQL | Hybrid | Microservices |
+|---------|:----:|:-------:|:------:|:-------------:|
+| NestJS 11 | ✓ | ✓ | ✓ | ✓ |
+| PostgreSQL | ✓ | ✓ | ✓ | ✓ |
+| Prisma ORM | ✓ | ✓ | ✓ | ✓ |
+| JWT Auth | ✓ | ✓ | ✓ | ✓ |
+| OAuth2 | ✓ | ✓ | ✓ | - |
+| Redis Cache | ✓ | ✓ | ✓ | ✓ |
+| Rate Limiting | ✓ | ✓ | ✓ | ✓ |
+| Swagger | ✓ | - | ✓ | ✓ |
+| GraphQL Playground | - | ✓ | ✓ | - |
+| Kafka | - | - | - | ✓ |
+| Docker | ✓ | ✓ | ✓ | ✓ |
+| Kubernetes | ✓ | ✓ | ✓ | ✓ |
+| Serverless | ✓ | ✓ | ✓ | - |
+| PM2 | ✓ | ✓ | ✓ | - |
 
 ## Quick Start
 
@@ -28,46 +123,95 @@ pnpm db:generate
 pnpm start:dev
 ```
 
-## Tech Stack (All Templates)
+## Tech Stack
 
-- **Framework**: NestJS 11 + Node.js 22
-- **Database**: PostgreSQL + Prisma ORM
-- **Auth**: JWT + OAuth2 (Google, GitHub)
-- **Caching**: Redis via @nestjs/cache-manager
-- **Queues**: BullMQ
-- **Testing**: Vitest + Supertest
-- **Deployment**: Docker, Kubernetes, Google Cloud Functions, PM2
+```mermaid
+graph TB
+    subgraph Core["Core"]
+        NEST[NestJS 11]
+        NODE[Node.js 22]
+        TS[TypeScript 5.7]
+    end
 
-## Template Features
+    subgraph Data["Data"]
+        PG[(PostgreSQL 17)]
+        PRISMA[Prisma 6]
+        REDIS[(Redis 7)]
+    end
+
+    subgraph Auth["Authentication"]
+        JWT[JWT]
+        PASSPORT[Passport.js]
+        OAUTH[OAuth2]
+    end
+
+    subgraph Deploy["Deployment"]
+        DOCKER[Docker]
+        K8S[Kubernetes]
+        SERVERLESS[Serverless]
+        PM2[PM2]
+    end
+
+    Core --> Data
+    Core --> Auth
+    Core --> Deploy
+```
+
+## Template Details
 
 ### REST API (`rest-api/`)
+
+- Traditional controller/service pattern
 - Swagger/OpenAPI documentation
-- Standard controller/service pattern
+- Standard HTTP methods (GET, POST, PUT, DELETE)
 - Auth + Health modules
 
+**Best for:** CRUD APIs, admin dashboards, traditional web apps
+
 ### GraphQL (`graphql/`)
-- Schema-first with Apollo Server
-- GraphQL Playground
+
+- Schema-first approach with Apollo Server
+- GraphQL Playground for testing
 - Resolver pattern with GQL guards
+- Auto-generated TypeScript types
+
+**Best for:** Mobile apps, SPAs, apps needing flexible data fetching
 
 ### Hybrid (`hybrid/`)
+
 - Both REST endpoints AND GraphQL resolvers
 - Swagger + GraphQL Playground
 - Shared services between REST/GraphQL
+- Single codebase, dual API styles
+
+**Best for:** APIs serving web (REST) and mobile (GraphQL) clients
 
 ### Microservices (`microservices/`)
-- Kafka transport layer
+
+- Kafka transport layer for messaging
 - Gateway + User Service + Notification Service
 - Per-service Docker & K8s configs
 - NestJS monorepo structure
 
+**Best for:** Large-scale apps, team-based development, high scalability needs
+
 ## Deployment Options
 
-Each template includes configs for:
-- **Docker**: `docker/Dockerfile`, `docker-compose.yml`
-- **Kubernetes**: `k8s/` manifests
-- **Serverless**: `serverless.yml` (Google Cloud Functions)
-- **VPS**: `pm2.ecosystem.config.js`
+Each template includes deployment configs for:
+
+| Target | Files | Use Case |
+|--------|-------|----------|
+| Docker | `docker/Dockerfile`, `docker-compose.yml` | Local dev, containers |
+| Kubernetes | `k8s/` manifests | Production, scalability |
+| Serverless | `serverless.yml` | Google Cloud Functions |
+| VPS | `pm2.ecosystem.config.js` | Traditional servers |
+
+## Documentation
+
+Each template includes:
+- `README.md` - Quick start, API reference
+- `docs/system-architecture.md` - Architecture diagrams
+- `docs/deployment-guide.md` - Deployment instructions
 
 ## License
 

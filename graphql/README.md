@@ -1,107 +1,180 @@
 # NestJS GraphQL Template
 
-Production-ready NestJS GraphQL API template with schema-first approach, JWT authentication, Prisma ORM, and multi-target deployment support.
+Production-ready NestJS GraphQL API with schema-first approach, JWT authentication, and multi-target deployment.
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Clients"]
+        WEB[Web/Mobile]
+        PLAY[Playground]
+    end
+
+    subgraph API["NestJS GraphQL"]
+        APOLLO[Apollo Server]
+        GQL[GraphQL Engine]
+        GUARD[GQL Guards]
+        RESOLVER[Resolvers]
+    end
+
+    subgraph Data["Data Layer"]
+        PRISMA[Prisma ORM]
+        PG[(PostgreSQL)]
+        REDIS[(Redis)]
+    end
+
+    WEB --> APOLLO
+    PLAY --> APOLLO
+    APOLLO --> GQL --> GUARD --> RESOLVER
+    RESOLVER --> PRISMA --> PG
+    RESOLVER --> REDIS
+```
+
+## Request Flow
+
+```mermaid
+sequenceDiagram
+    Client->>+Apollo: GraphQL Request
+    Apollo->>Apollo: Parse Schema
+    Apollo->>+Guard: Auth Check
+    Guard->>Guard: Validate JWT
+    Guard->>+Resolver: Execute
+    Resolver->>+Service: Logic
+    Service->>+DB: Query
+    DB-->>-Service: Data
+    Service-->>-Resolver: Result
+    Resolver-->>-Apollo: Response
+    Apollo-->>-Client: JSON
+```
 
 ## Features
 
-- **NestJS 11** with Node.js 22
-- **GraphQL** with Apollo Server (schema-first approach)
-- **PostgreSQL** with Prisma ORM
-- **Authentication**: JWT + OAuth2 (Google, GitHub)
-- **Caching**: Redis via @nestjs/cache-manager
-- **Queue**: BullMQ for background jobs
-- **Validation**: class-validator + Zod
+- **NestJS 11** + Node.js 22
+- **GraphQL**: Apollo Server 5 (schema-first)
+- **Auth**: JWT + OAuth2 (Google, GitHub)
+- **Database**: PostgreSQL + Prisma ORM
+- **Cache**: Redis
+- **Security**: Helmet, rate limiting
 - **Testing**: Vitest + Supertest
-- **Security**: Helmet, rate limiting, CORS
+- **Deploy**: Docker, K8s, Serverless, PM2
 
 ## Quick Start
 
 ```bash
-# Clone and setup
-git clone https://github.com/be-boiler/nestjs-graphql-template.git my-api
-cd my-api
 pnpm install
-
-# Configure environment
 cp .env.example .env
-
-# Start database
 docker compose up -d postgres redis
-
-# Run migrations
 pnpm db:push
-
-# Start development server
 pnpm start:dev
 ```
 
-GraphQL Playground available at: http://localhost:3000/graphql
+GraphQL Playground: http://localhost:3000/graphql
 
 ## Project Structure
 
 ```
 src/
-├── config/              # Configuration modules
-├── graphql/             # GraphQL schema files
-│   └── schema.graphql   # Main schema definition
+├── config/              # Configuration
+├── graphql/
+│   └── schema.graphql   # Schema definition
 ├── modules/
-│   ├── auth/            # Authentication (resolver, guards, strategies)
-│   ├── health/          # Health checks (resolver)
+│   ├── auth/            # Resolvers, guards, strategies
+│   ├── health/          # Health resolver
 │   └── prisma/          # Database service
 ├── common/              # Shared utilities
-├── app.module.ts        # Root module
-└── main.ts              # Application entry
+└── main.ts
 ```
 
-## GraphQL Schema
+## GraphQL Operations
 
-The schema is defined in `src/graphql/schema.graphql`. Types are auto-generated to `src/graphql/graphql.ts` on build.
+### Queries
 
-### Available Operations
+```graphql
+# Health check
+query { health }
 
-**Queries:**
-- `health` - Health check status
-- `me` - Current user (authenticated)
-- `user(id: ID!)` - Get user by ID (authenticated)
+# Current user (auth required)
+query { me { id email name } }
 
-**Mutations:**
-- `register(input: RegisterInput!)` - User registration
-- `login(input: LoginInput!)` - User login
-- `refreshTokens` - Refresh JWT tokens
-- `logout` - User logout
+# Get user by ID
+query { user(id: "...") { id email } }
+```
+
+### Mutations
+
+```graphql
+# Register
+mutation {
+  register(input: { email: "...", password: "...", name: "..." }) {
+    accessToken
+    user { id email }
+  }
+}
+
+# Login
+mutation {
+  login(input: { email: "...", password: "..." }) {
+    accessToken
+    refreshToken
+  }
+}
+
+# Refresh tokens
+mutation { refreshTokens { accessToken refreshToken } }
+
+# Logout
+mutation { logout }
+```
 
 ## Authentication
 
-### JWT Authentication
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Apollo
+    participant S as Service
+    participant DB as Database
 
-Include the access token in the Authorization header:
+    C->>A: mutation { login }
+    A->>S: Validate credentials
+    S->>DB: Find user
+    S->>S: Generate JWT (15m)
+    S->>S: Generate Refresh (7d)
+    S->>DB: Store refresh hash
+    A-->>C: { accessToken, refreshToken }
 
-```graphql
-# HTTP Headers
-{
-  "Authorization": "Bearer <access_token>"
-}
+    Note over C,DB: Authenticated request
+    C->>A: query { me } + Bearer token
+    A->>A: GqlAuthGuard validates
+    A-->>C: User data
 ```
 
-### OAuth2 Providers
+## Database Schema
 
-OAuth callbacks are handled at REST endpoints:
-- Google: `/auth/google/callback`
-- GitHub: `/auth/github/callback`
+```mermaid
+erDiagram
+    USER {
+        string id PK
+        string email UK
+        string password
+        string name
+        enum role
+        enum provider
+        string providerId
+        string refreshToken
+        datetime createdAt
+        datetime updatedAt
+    }
+```
 
 ## Deployment
 
 ### Docker
 
 ```bash
-docker build -f docker/Dockerfile -t my-api .
-docker run -p 3000:3000 my-api
-```
-
-### Google Cloud Functions
-
-```bash
-npx serverless deploy --stage prod
+docker build -f docker/Dockerfile -t api .
+docker compose up -d
 ```
 
 ### Kubernetes
@@ -110,50 +183,32 @@ npx serverless deploy --stage prod
 kubectl apply -f k8s/
 ```
 
+### Serverless
+
+```bash
+npx serverless deploy --stage prod
+```
+
 ### PM2
 
 ```bash
-pm2 start pm2.ecosystem.config.js --env production
+pnpm build && pm2 start pm2.ecosystem.config.js
 ```
 
 ## Scripts
 
 ```bash
-pnpm start:dev      # Development with hot reload
-pnpm build          # Build for production
-pnpm test           # Run tests
-pnpm test:cov       # Test coverage
-pnpm db:generate    # Generate Prisma client
-pnpm db:migrate     # Run migrations
-pnpm db:push        # Push schema to database
+pnpm start:dev      # Dev server
+pnpm build          # Production build
+pnpm test           # Tests
+pnpm db:generate    # Generate Prisma
+pnpm db:push        # Push schema
 ```
 
-## Environment Variables
+## Documentation
 
-```env
-# App
-NODE_ENV=development
-PORT=3000
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/mydb
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# JWT
-JWT_ACCESS_SECRET=your-access-secret
-JWT_REFRESH_SECRET=your-refresh-secret
-JWT_ACCESS_EXPIRATION=15m
-JWT_REFRESH_EXPIRATION=7d
-
-# OAuth (optional)
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-```
+- [System Architecture](./docs/system-architecture.md)
+- [Deployment Guide](./docs/deployment-guide.md)
 
 ## License
 

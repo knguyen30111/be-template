@@ -1,100 +1,138 @@
 # NestJS REST API Template
 
-Production-ready NestJS REST API template with JWT authentication, Prisma ORM, and multi-target deployment support.
+Production-ready NestJS REST API with JWT authentication, Prisma ORM, and multi-target deployment.
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Clients"]
+        WEB[Web/Mobile]
+    end
+
+    subgraph API["NestJS REST API"]
+        MW[Middleware<br/>Helmet, CORS, Rate Limit]
+        GUARD[JWT Guard]
+        CTRL[Controllers]
+        SVC[Services]
+    end
+
+    subgraph Data["Data Layer"]
+        PRISMA[Prisma ORM]
+        PG[(PostgreSQL)]
+        REDIS[(Redis)]
+    end
+
+    WEB --> MW --> GUARD --> CTRL --> SVC
+    SVC --> PRISMA --> PG
+    SVC --> REDIS
+```
+
+## Request Flow
+
+```mermaid
+sequenceDiagram
+    Client->>+API: HTTP Request
+    API->>API: Helmet/CORS
+    API->>API: Rate Limit Check
+    API->>API: JWT Validation
+    API->>+Service: Business Logic
+    Service->>+DB: Query
+    DB-->>-Service: Data
+    Service-->>-API: Response
+    API-->>-Client: JSON
+```
 
 ## Features
 
-- **NestJS 11** with TypeScript
-- **Authentication**: JWT (access + refresh tokens), OAuth2 (Google, GitHub)
-- **Database**: PostgreSQL with Prisma ORM
-- **Caching**: Redis with cache-manager
-- **Queue**: BullMQ for background jobs
-- **Security**: Helmet, rate limiting, CORS
-- **API Docs**: Swagger/OpenAPI
+- **NestJS 11** + Node.js 22
+- **Auth**: JWT + OAuth2 (Google, GitHub)
+- **Database**: PostgreSQL + Prisma ORM
+- **Cache**: Redis
+- **Security**: Helmet, CORS, rate limiting
+- **Docs**: Swagger/OpenAPI
 - **Testing**: Vitest + Supertest
-- **Deployment**: Docker, Kubernetes, Serverless (AWS Lambda), PM2
+- **Deploy**: Docker, K8s, Serverless, PM2
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js 22+
-- pnpm
-- PostgreSQL
-- Redis
-
-### Installation
-
 ```bash
-# Clone from template
-gh repo create my-api --template be-boiler/nestjs-rest-api-template
-
-# Install dependencies
 pnpm install
-
-# Setup environment
 cp .env.example .env
-
-# Generate Prisma client
 pnpm db:generate
-
-# Run migrations
 pnpm db:migrate
-
-# Start development server
 pnpm start:dev
 ```
 
-### Using Docker
-
-```bash
-cd docker
-docker-compose up
-```
+Swagger: http://localhost:3000/api/docs
 
 ## Project Structure
 
 ```
 src/
-├── common/           # Shared utilities
-│   ├── decorators/   # @CurrentUser, @Public, @Roles
-│   ├── filters/      # Exception filters
-│   ├── guards/       # Auth guards
-│   └── interceptors/ # Logging, transform
-├── config/           # Configuration with Zod validation
+├── common/           # Guards, decorators, interceptors
+├── config/           # Zod-validated configuration
 ├── modules/
 │   ├── auth/         # JWT + OAuth authentication
-│   ├── health/       # Health check endpoints
+│   ├── health/       # Health endpoints
 │   └── prisma/       # Database service
-├── app.module.ts
-├── main.ts           # HTTP entry point
-└── lambda.ts         # Serverless entry point
+├── main.ts           # HTTP entry
+└── lambda.ts         # Serverless entry
 ```
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/auth/register | Register new user |
-| POST | /api/auth/login | Login with email/password |
-| POST | /api/auth/refresh | Refresh access token |
-| POST | /api/auth/logout | Logout user |
-| GET | /api/auth/me | Get current user |
-| GET | /api/auth/google | Login with Google |
-| GET | /api/auth/github | Login with GitHub |
-| GET | /api/health | Liveness check |
-| GET | /api/health/ready | Readiness check |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | /api/auth/register | - | Register user |
+| POST | /api/auth/login | - | Login |
+| POST | /api/auth/refresh | JWT | Refresh tokens |
+| POST | /api/auth/logout | JWT | Logout |
+| GET | /api/auth/me | JWT | Current user |
+| GET | /api/auth/google | - | Google OAuth |
+| GET | /api/auth/github | - | GitHub OAuth |
+| GET | /api/health | - | Liveness |
+| GET | /api/health/ready | - | Readiness |
 
-## Scripts
+## Authentication
 
-```bash
-pnpm start:dev     # Development with hot reload
-pnpm build         # Production build
-pnpm test          # Run unit tests
-pnpm test:e2e      # Run e2e tests
-pnpm lint          # Lint code
-pnpm db:migrate    # Run migrations
-pnpm db:seed       # Seed database
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as Auth
+    participant DB as Database
+
+    C->>A: POST /auth/login
+    A->>DB: Validate credentials
+    A->>A: Generate JWT (15m)
+    A->>A: Generate Refresh (7d)
+    A->>DB: Store refresh hash
+    A-->>C: { accessToken, refreshToken }
+
+    Note over C,DB: Later...
+
+    C->>A: POST /auth/refresh
+    A->>DB: Validate refresh token
+    A->>A: Generate new tokens
+    A-->>C: { accessToken, refreshToken }
+```
+
+## Database Schema
+
+```mermaid
+erDiagram
+    USER {
+        string id PK
+        string email UK
+        string password
+        string name
+        enum role
+        enum provider
+        string providerId
+        string refreshToken
+        datetime createdAt
+        datetime updatedAt
+    }
 ```
 
 ## Deployment
@@ -102,8 +140,8 @@ pnpm db:seed       # Seed database
 ### Docker
 
 ```bash
-docker build -f docker/Dockerfile -t my-api .
-docker run -p 3000:3000 my-api
+docker build -f docker/Dockerfile -t api .
+docker compose up -d
 ```
 
 ### Kubernetes
@@ -112,7 +150,7 @@ docker run -p 3000:3000 my-api
 kubectl apply -f k8s/
 ```
 
-### AWS Lambda
+### Serverless
 
 ```bash
 npx serverless deploy
@@ -121,13 +159,24 @@ npx serverless deploy
 ### PM2
 
 ```bash
-pnpm build
-pm2 start pm2.ecosystem.config.js --env production
+pnpm build && pm2 start pm2.ecosystem.config.js
 ```
 
-## Environment Variables
+## Scripts
 
-See `.env.example` for all required variables.
+```bash
+pnpm start:dev     # Dev server
+pnpm build         # Production build
+pnpm test          # Unit tests
+pnpm test:e2e      # E2E tests
+pnpm db:migrate    # Run migrations
+pnpm db:seed       # Seed database
+```
+
+## Documentation
+
+- [System Architecture](./docs/system-architecture.md)
+- [Deployment Guide](./docs/deployment-guide.md)
 
 ## License
 

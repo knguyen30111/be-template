@@ -1,104 +1,208 @@
 # NestJS Hybrid Template
 
-Production-ready NestJS Hybrid API template combining REST and GraphQL endpoints, with JWT authentication, Prisma ORM, and multi-target deployment support.
+Production-ready NestJS Hybrid API combining REST and GraphQL with shared services.
+
+## Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Clients"]
+        REST_C[REST Clients]
+        GQL_C[GraphQL Clients]
+    end
+
+    subgraph API["NestJS Hybrid"]
+        direction LR
+        subgraph REST["REST"]
+            CTRL[Controllers]
+            SWAGGER[Swagger]
+        end
+        subgraph GQL["GraphQL"]
+            APOLLO[Apollo]
+            RESOLVER[Resolvers]
+        end
+    end
+
+    subgraph Services["Shared Services"]
+        AUTH[Auth Service]
+        HEALTH[Health Service]
+    end
+
+    subgraph Data["Data Layer"]
+        PRISMA[Prisma]
+        PG[(PostgreSQL)]
+        REDIS[(Redis)]
+    end
+
+    REST_C --> CTRL
+    GQL_C --> APOLLO
+    CTRL --> AUTH
+    RESOLVER --> AUTH
+    AUTH --> PRISMA --> PG
+    AUTH --> REDIS
+```
+
+## Request Flows
+
+```mermaid
+sequenceDiagram
+    participant RC as REST Client
+    participant GC as GraphQL Client
+    participant API as NestJS
+    participant S as Shared Service
+    participant DB as Database
+
+    par REST Request
+        RC->>API: POST /api/auth/login
+        API->>S: login()
+        S->>DB: Query
+        API-->>RC: JSON
+    and GraphQL Request
+        GC->>API: mutation { login }
+        API->>S: login()
+        S->>DB: Query
+        API-->>GC: GraphQL Response
+    end
+```
 
 ## Features
 
-- **NestJS 11** with Node.js 22
-- **Hybrid API**: REST endpoints + GraphQL (schema-first)
-- **PostgreSQL** with Prisma ORM
-- **Authentication**: JWT + OAuth2 (Google, GitHub)
-- **Caching**: Redis via @nestjs/cache-manager
-- **Queue**: BullMQ for background jobs
-- **API Docs**: Swagger (REST) + GraphQL Playground
-- **Validation**: class-validator + Zod
+- **NestJS 11** + Node.js 22
+- **Hybrid**: REST + GraphQL (schema-first)
+- **Auth**: JWT + OAuth2 (Google, GitHub)
+- **Database**: PostgreSQL + Prisma ORM
+- **Cache**: Redis
+- **Docs**: Swagger + GraphQL Playground
 - **Testing**: Vitest + Supertest
-- **Security**: Helmet, rate limiting, CORS
+- **Deploy**: Docker, K8s, Serverless, PM2
 
 ## Quick Start
 
 ```bash
-# Clone and setup
-git clone https://github.com/be-boiler/nestjs-hybrid-template.git my-api
-cd my-api
 pnpm install
-
-# Configure environment
 cp .env.example .env
-
-# Start database
 docker compose up -d postgres redis
-
-# Run migrations
 pnpm db:push
-
-# Start development server
 pnpm start:dev
 ```
 
-### API Endpoints
+### Endpoints
 
 - **REST API**: http://localhost:3000/api
-- **Swagger Docs**: http://localhost:3000/api/docs
-- **GraphQL Playground**: http://localhost:3000/graphql
+- **Swagger**: http://localhost:3000/api/docs
+- **GraphQL**: http://localhost:3000/graphql
 
 ## Project Structure
 
 ```
 src/
-├── config/              # Configuration modules
-├── graphql/             # GraphQL schema files
-│   └── schema.graphql   # GraphQL schema definition
+├── config/              # Configuration
+├── graphql/
+│   └── schema.graphql   # GraphQL schema
 ├── modules/
-│   ├── auth/            # Authentication
-│   │   ├── auth.controller.ts  # REST endpoints
-│   │   ├── auth.resolver.ts    # GraphQL resolver
-│   │   ├── guards/             # Auth guards
-│   │   └── strategies/         # Passport strategies
-│   ├── health/          # Health checks (REST + GraphQL)
-│   └── prisma/          # Database service
-├── common/              # Shared utilities
-├── app.module.ts        # Root module
-└── main.ts              # Application entry
+│   ├── auth/
+│   │   ├── auth.controller.ts  # REST
+│   │   ├── auth.resolver.ts    # GraphQL
+│   │   └── auth.service.ts     # Shared
+│   ├── health/          # Health checks
+│   └── prisma/          # Database
+├── common/              # Guards, decorators
+└── main.ts
 ```
 
 ## REST Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/auth/register | Register new user |
-| POST | /api/auth/login | Login with email/password |
-| POST | /api/auth/refresh | Refresh access token |
-| POST | /api/auth/logout | Logout user |
-| GET | /api/auth/me | Get current user |
-| GET | /api/health | Liveness check |
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | /api/auth/register | - | Register |
+| POST | /api/auth/login | - | Login |
+| POST | /api/auth/refresh | JWT | Refresh |
+| POST | /api/auth/logout | JWT | Logout |
+| GET | /api/auth/me | JWT | Current user |
+| GET | /api/health | - | Health check |
 
 ## GraphQL Operations
 
-**Queries:**
-- `health` - Health check status
-- `me` - Current user (authenticated)
-- `user(id: ID!)` - Get user by ID
+```graphql
+# Mutations
+mutation { register(input: {...}) { accessToken user { id } } }
+mutation { login(input: {...}) { accessToken refreshToken } }
+mutation { refreshTokens { accessToken refreshToken } }
+mutation { logout }
 
-**Mutations:**
-- `register(input: RegisterInput!)` - User registration
-- `login(input: LoginInput!)` - User login
-- `refreshTokens` - Refresh JWT tokens
-- `logout` - User logout
+# Queries
+query { me { id email name } }
+query { user(id: "...") { id email } }
+query { health }
+```
+
+## Shared Service Pattern
+
+```mermaid
+graph LR
+    subgraph Endpoints
+        REST[Controller]
+        GQL[Resolver]
+    end
+
+    subgraph Shared
+        SVC[Auth Service]
+    end
+
+    REST --> SVC
+    GQL --> SVC
+```
+
+Both REST and GraphQL share the same service layer for:
+- Authentication logic
+- Token generation
+- Password hashing
+- User management
+
+## Authentication
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant E as REST/GraphQL
+    participant S as Auth Service
+    participant DB as Database
+
+    C->>E: Login (REST or GQL)
+    E->>S: login(credentials)
+    S->>DB: Find user
+    S->>S: Verify password
+    S->>S: Generate JWT (15m)
+    S->>S: Generate Refresh (7d)
+    S->>DB: Store refresh hash
+    E-->>C: { accessToken, refreshToken }
+```
+
+## Database Schema
+
+```mermaid
+erDiagram
+    USER {
+        string id PK
+        string email UK
+        string password
+        string name
+        enum role
+        enum provider
+        string providerId
+        string refreshToken
+        datetime createdAt
+        datetime updatedAt
+    }
+```
 
 ## Deployment
 
 ### Docker
 
 ```bash
-docker build -f docker/Dockerfile -t my-api .
-docker run -p 3000:3000 my-api
-```
-
-### Google Cloud Functions
-
-```bash
-npx serverless deploy --stage prod
+docker build -f docker/Dockerfile -t api .
+docker compose up -d
 ```
 
 ### Kubernetes
@@ -107,52 +211,32 @@ npx serverless deploy --stage prod
 kubectl apply -f k8s/
 ```
 
+### Serverless
+
+```bash
+npx serverless deploy --stage prod
+```
+
 ### PM2
 
 ```bash
-pm2 start pm2.ecosystem.config.js --env production
+pnpm build && pm2 start pm2.ecosystem.config.js
 ```
 
 ## Scripts
 
 ```bash
-pnpm start:dev      # Development with hot reload
-pnpm build          # Build for production
-pnpm test           # Run tests
-pnpm test:cov       # Test coverage
-pnpm db:generate    # Generate Prisma client
+pnpm start:dev      # Dev server
+pnpm build          # Production build
+pnpm test           # Tests
+pnpm db:generate    # Generate Prisma
 pnpm db:migrate     # Run migrations
 ```
 
-## Environment Variables
+## Documentation
 
-```env
-# App
-NODE_ENV=development
-PORT=3000
-API_PREFIX=api
-
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/mydb
-
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# JWT
-JWT_ACCESS_SECRET=your-access-secret
-JWT_REFRESH_SECRET=your-refresh-secret
-
-# Swagger (optional)
-SWAGGER_ENABLED=true
-SWAGGER_TITLE=My API
-
-# OAuth (optional)
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-```
+- [System Architecture](./docs/system-architecture.md)
+- [Deployment Guide](./docs/deployment-guide.md)
 
 ## License
 
