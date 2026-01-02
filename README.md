@@ -15,10 +15,10 @@ Production-ready NestJS 11 templates for rapid project scaffolding.
 
 ```bash
 # Clone this repo
-git clone git@github.com:knguyen30111/nestjs-templates.git
+git clone git@github.com:knguyen30111/be-template.git
 
 # Copy the template you need
-cp -r nestjs-templates/rest-api my-new-project
+cp -r be-template/rest-api my-new-project
 cd my-new-project
 
 # Install & run
